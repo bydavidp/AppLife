@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../domain/models/game_state.dart';
 import '../domain/models/game_event.dart';
+import '../domain/models/character.dart';
 import '../domain/enums/asset_type.dart';
 import '../engine/game_engine.dart';
 import '../persistence/save_manager.dart';
@@ -11,6 +12,7 @@ import 'economy_screen.dart';
 import 'family_screen.dart';
 import 'events_history_screen.dart';
 import 'achievements_screen.dart';
+import 'shop_screen.dart';
 
 class MainGameScreen extends StatefulWidget {
   final GameState gameState;
@@ -29,12 +31,18 @@ class _MainGameScreenState extends State<MainGameScreen> {
   bool _showSummary = false;
   String _summary = '';
   int _navIndex = 0;
+  int _eventYearsSkipped = 0;
 
   @override
   void initState() {
     super.initState();
     _gameState = widget.gameState;
-    _engine = GameEngine(character: _gameState.character);
+    _engine = GameEngine(character: _gameState.character, currentYear: _gameState.currentYear);
+
+    if (_gameState.character.relationships.isEmpty && _gameState.character.age < 5) {
+      _engine.initializeFamily();
+    }
+
     if (_gameState.character.age == 0) {
       _advanceToAge(1);
     }
@@ -49,7 +57,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
       id: _gameState.id,
       playerName: _gameState.playerName,
       character: _engine.character,
-      currentYear: _gameState.currentYear + (targetAge - _engine.character.age),
+      currentYear: _engine.currentYear,
       lastSaved: DateTime.now(),
     );
   }
@@ -62,7 +70,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
       id: _gameState.id,
       playerName: _gameState.playerName,
       character: _engine.character,
-      currentYear: _gameState.currentYear + 1,
+      currentYear: _engine.currentYear,
       lastSaved: DateTime.now(),
     );
 
@@ -71,22 +79,56 @@ class _MainGameScreenState extends State<MainGameScreen> {
       return;
     }
 
+    _eventYearsSkipped = 0;
+    _checkForEvent();
+    setState(() {});
+  }
+
+  void _advanceMultipleYears(int years) {
+    if (!_engine.character.isAlive) return;
+
+    for (int i = 0; i < years; i++) {
+      _engine.advanceYear();
+      if (_engine.isGameOver) break;
+    }
+
+    _gameState = GameState(
+      id: _gameState.id,
+      playerName: _gameState.playerName,
+      character: _engine.character,
+      currentYear: _engine.currentYear,
+      lastSaved: DateTime.now(),
+    );
+
+    if (_engine.isGameOver) {
+      _showGameOver();
+      return;
+    }
+
+    _eventYearsSkipped = 0;
     _checkForEvent();
     setState(() {});
   }
 
   void _checkForEvent() {
-    if (_engine.character.isAlive && Random().nextDouble() < 0.6) {
-      final event = _engine.getNextEvent();
-      if (event != null) {
-        setState(() {
-          _currentEvent = event;
-          _showEvent = true;
-        });
-        return;
-      }
+    if (!_engine.character.isAlive) return;
+
+    if (_eventYearsSkipped > 3) {
+      _eventYearsSkipped = 0;
+      setState(() => _currentEvent = null);
+      return;
     }
-    setState(() => _currentEvent = null);
+
+    final event = _engine.getNextEvent();
+    if (event != null) {
+      setState(() {
+        _currentEvent = event;
+        _showEvent = true;
+      });
+    } else {
+      _eventYearsSkipped++;
+      setState(() => _currentEvent = null);
+    }
   }
 
   void _handleChoice(EventChoice choice) {
@@ -96,7 +138,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
       id: _gameState.id,
       playerName: _gameState.playerName,
       character: _engine.character,
-      currentYear: _gameState.currentYear,
+      currentYear: _engine.currentYear,
       lastSaved: DateTime.now(),
     );
 
@@ -115,6 +157,35 @@ class _MainGameScreenState extends State<MainGameScreen> {
       _showSummary = true;
       _summary = _engine.getGameOverSummary();
     });
+  }
+
+  void _startLegacy() {
+    final heirId = _engine.getHeirId();
+    if (heirId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tienes hijos para continuar el legado'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    final heir = _engine.createHeir(heirId);
+    _engine = GameEngine(character: heir, currentYear: _engine.currentYear);
+    _engine.initializeFamily();
+    _gameState = GameState(
+      id: heir.id,
+      playerName: heir.name,
+      character: heir,
+      currentYear: _engine.currentYear,
+      lastSaved: DateTime.now(),
+      isLegacyMode: true,
+    );
+
+    setState(() {
+      _showSummary = false;
+      _showEvent = false;
+      _currentEvent = null;
+    });
+    _checkForEvent();
   }
 
   Future<void> _saveGame() async {
@@ -147,11 +218,10 @@ class _MainGameScreenState extends State<MainGameScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          '${c.name} - ${c.age} años',
-          style: const TextStyle(fontSize: 16),
-        ),
+        title: Text('${c.name} - ${c.age} años', style: const TextStyle(fontSize: 16)),
         actions: [
+          if (c.age >= 18)
+            IconButton(icon: const Icon(Icons.shopping_bag), onPressed: () => _openShop()),
           IconButton(icon: const Icon(Icons.save), onPressed: _saveGame),
         ],
       ),
@@ -170,6 +240,21 @@ class _MainGameScreenState extends State<MainGameScreen> {
     );
   }
 
+  void _openShop() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ShopScreen(
+          character: _engine.character,
+          onPurchase: () {
+            setState(() {});
+            _saveGame();
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildMainView(ThemeData theme) {
     if (_showEvent && _currentEvent != null) {
       return SingleChildScrollView(
@@ -179,7 +264,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
         ),
       );
     }
-
     return _buildGameView(theme);
   }
 
@@ -197,123 +281,94 @@ class _MainGameScreenState extends State<MainGameScreen> {
             'Dinero: \$${c.money.toStringAsFixed(0)}',
             'Patrimonio: \$${c.netWorth.toStringAsFixed(0)}',
             'Carrera: ${c.career?.name ?? "Sin empleo"}',
-            if (c.career != null)
-              'Nivel: ${c.career!.levelName} · Salario: \$${c.career!.salary.toStringAsFixed(0)}/año',
-            'Logros: ${c.achievements.length}',
+            if (c.career != null) 'Nivel: ${c.career!.levelName} · Salario: \$${c.career!.salary.toStringAsFixed(0)}/año',
+            if (c.isMarried) 'Estado: Casado/a',
+            'Hijos: ${c.childrenIds.length} · Logros: ${c.achievements.length}',
           ]),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: StatBar(
-                  label: 'Inteligen.',
-                  value: c.stats.intelligence,
-                  icon: Icons.psychology,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: StatBar(
-                  label: 'Apariencia',
-                  value: c.stats.appearance,
-                  icon: Icons.face,
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: StatBar(label: 'Inteligen.', value: c.stats.intelligence, icon: Icons.psychology)),
+            const SizedBox(width: 8),
+            Expanded(child: StatBar(label: 'Apariencia', value: c.stats.appearance, icon: Icons.face)),
+          ]),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: StatBar(
-                  label: 'Carisma',
-                  value: c.stats.charisma,
-                  icon: Icons.forum,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: StatBar(
-                  label: 'Atletismo',
-                  value: c.stats.athleticism,
-                  icon: Icons.fitness_center,
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: StatBar(label: 'Carisma', value: c.stats.charisma, icon: Icons.forum)),
+            const SizedBox(width: 8),
+            Expanded(child: StatBar(label: 'Atletismo', value: c.stats.athleticism, icon: Icons.fitness_center)),
+          ]),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: StatBar(
-                  label: 'Disciplina',
-                  value: c.stats.discipline,
-                  icon: Icons.self_improvement,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(child: SizedBox()),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: StatBar(label: 'Disciplina', value: c.stats.discipline, icon: Icons.self_improvement)),
+            const SizedBox(width: 8),
+            const Expanded(child: SizedBox()),
+          ]),
           const SizedBox(height: 16),
           if (c.relationships.isNotEmpty) ...[
-            Text('Familia y relaciones', style: theme.textTheme.titleSmall),
+            Text('Relaciones cercanas', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             SizedBox(
               height: 40,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                children: c.relationships.map((r) => Padding(
+                children: c.relationships.where((r) => r.isAlive).take(6).map((r) => Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Chip(
-                    avatar: Icon(
-                      r.isAlive ? Icons.person : Icons.person_off,
-                      size: 14,
-                    ),
-                    label: Text(
-                      '${r.name} (${r.affinity})',
-                      style: const TextStyle(fontSize: 10),
-                    ),
+                    avatar: Icon(Icons.person, size: 14),
+                    label: Text('${r.name} (${r.affinity})', style: const TextStyle(fontSize: 10)),
                     visualDensity: VisualDensity.compact,
                   ),
                 )).toList(),
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 56,
             child: FilledButton.icon(
               onPressed: _engine.isGameOver ? null : _advanceYear,
               icon: const Icon(Icons.timer),
-              label: Text(
-                _engine.isGameOver ? 'Fin del juego' : 'Avanzar año',
-                style: const TextStyle(fontSize: 18),
-              ),
+              label: Text('Avanzar 1 año', style: const TextStyle(fontSize: 18)),
             ),
           ),
+          const SizedBox(height: 8),
+          if (c.age >= 16)
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _engine.isGameOver ? null : () => _advanceMultipleYears(5),
+                icon: const Icon(Icons.fast_forward),
+                label: const Text('Avanzar 5 años'),
+              ),
+            ),
+          if (c.age >= 30)
+            const SizedBox(height: 8),
+          if (c.age >= 30)
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _engine.isGameOver ? null : () => _advanceMultipleYears(10),
+                icon: const Icon(Icons.skip_next),
+                label: const Text('Avanzar 10 años'),
+              ),
+            ),
           const SizedBox(height: 16),
           if (c.eventHistory.length > 2) ...[
-            Text('Últimos eventos:', style: theme.textTheme.titleSmall),
+            Text('Eventos recientes:', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            ...c.eventHistory.reversed.take(4).map((e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.circle, size: 6),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          e,
-                          style: theme.textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
+            ...c.eventHistory.reversed.take(5).map((e) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  const Icon(Icons.circle, size: 6),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(e, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            )),
           ],
         ],
       ),
@@ -324,49 +379,18 @@ class _MainGameScreenState extends State<MainGameScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: StatBar(
-                    label: 'Salud',
-                    value: c.stats.health,
-                    icon: Icons.favorite,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: StatBar(
-                    label: 'Felicidad',
-                    value: c.stats.happiness,
-                    icon: Icons.emoji_emotions,
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: StatBar(
-                    label: 'Estrés',
-                    value: c.stats.stress,
-                    icon: Icons.bolt,
-                    color: c.stats.stress > 60 ? Colors.red : Colors.orange,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: StatBar(
-                    label: 'Reputación',
-                    value: c.stats.reputation,
-                    icon: Icons.star,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        child: Column(children: [
+          Row(children: [
+            Expanded(child: StatBar(label: 'Salud', value: c.stats.health, icon: Icons.favorite)),
+            const SizedBox(width: 8),
+            Expanded(child: StatBar(label: 'Felicidad', value: c.stats.happiness, icon: Icons.emoji_emotions)),
+          ]),
+          Row(children: [
+            Expanded(child: StatBar(label: 'Estrés', value: c.stats.stress, icon: Icons.bolt, color: c.stats.stress > 60 ? Colors.red : Colors.orange)),
+            const SizedBox(width: 8),
+            Expanded(child: StatBar(label: 'Reputación', value: c.stats.reputation, icon: Icons.star)),
+          ]),
+        ]),
       ),
     );
   }
@@ -375,24 +399,17 @@ class _MainGameScreenState extends State<MainGameScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ...lines.map((l) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 1),
-                  child: Text(l, style: theme.textTheme.bodySmall),
-                )),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...lines.map((l) => Padding(padding: const EdgeInsets.symmetric(vertical: 1), child: Text(l, style: theme.textTheme.bodySmall))),
+        ]),
       ),
     );
   }
 
   Widget _buildGameOverScreen(ThemeData theme) {
+    final hasHeir = _engine.getHeirId() != null;
     return Scaffold(
       body: Center(
         child: Padding(
@@ -404,12 +421,34 @@ class _MainGameScreenState extends State<MainGameScreen> {
               const SizedBox(height: 16),
               Text('Game Over', style: theme.textTheme.headlineMedium),
               const SizedBox(height: 24),
-              Text(_summary, style: theme.textTheme.bodyLarge, textAlign: TextAlign.center),
-              const SizedBox(height: 32),
-              FilledButton.icon(
-                onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
-                icon: const Icon(Icons.home),
-                label: const Text('Volver al inicio'),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(_summary, style: theme.textTheme.bodyMedium, textAlign: TextAlign.center),
+              ),
+              const SizedBox(height: 24),
+              if (hasHeir)
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton.icon(
+                    onPressed: _startLegacy,
+                    icon: const Icon(Icons.family_restroom),
+                    label: const Text('Continuar con el legado', style: TextStyle(fontSize: 18)),
+                  ),
+                ),
+              if (hasHeir) const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+                  icon: const Icon(Icons.home),
+                  label: const Text('Volver al inicio'),
+                ),
               ),
             ],
           ),

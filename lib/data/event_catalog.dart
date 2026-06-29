@@ -674,5 +674,347 @@ class EventCatalog {
         ),
       ],
     ),
+
+    // --- Adult Career Events ---
+    GameEvent(
+      id: 'career_change',
+      type: EventType.work,
+      title: 'Cambio de carrera',
+      description: 'Sientes que necesitas un cambio profesional. Hay varias opciones disponibles.',
+      minAge: 25,
+      maxAge: 55,
+      oneTime: true,
+      statRequirements: {'intelligence': 40},
+      choices: [
+        EventChoice(
+          text: 'Emprender mi propio negocio',
+          statEffects: {'stress': 20, 'discipline': 5, 'intelligence': 3},
+          moneyEffect: -20000,
+          careerGranted: 'business',
+          careerExperience: 30,
+        ),
+        EventChoice(
+          text: 'Entrar al mundo de la tecnología',
+          statEffects: {'intelligence': 5, 'stress': 10, 'discipline': 3},
+          moneyEffect: -5000,
+          careerGranted: 'tech',
+          careerExperience: 20,
+        ),
+        EventChoice(
+          text: 'Dedicarme a la política',
+          statEffects: {'charisma': 5, 'reputation': 5, 'stress': 15},
+          careerGranted: 'politics',
+          careerExperience: 20,
+        ),
+        EventChoice(
+          text: 'Seguir en mi carrera actual',
+          statEffects: {'happiness': -3},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'real_estate_opportunity',
+      type: EventType.financial,
+      title: 'Oportunidad inmobiliaria',
+      description: 'Encontraste una propiedad en remate a buen precio. Podría ser una gran inversión.',
+      minAge: 22,
+      maxAge: 75,
+      moneyRequired: 50000,
+      statRequirements: {'intelligence': 40},
+      choices: [
+        EventChoice(
+          text: 'Comprar la propiedad',
+          statEffects: {'stress': 15, 'happiness': 5, 'intelligence': 2},
+          moneyEffect: -80000,
+          careerExperience: 15,
+        ),
+        EventChoice(
+          text: 'Invertir con un socio',
+          statEffects: {'stress': 10, 'charisma': 3},
+          moneyEffect: -30000,
+          careerExperience: 10,
+        ),
+        EventChoice(
+          text: 'Dejarlo pasar',
+          statEffects: {},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'mentorship',
+      type: EventType.work,
+      title: 'Oportunidad de mentoría',
+      description: 'Alguien con experiencia quiere ser tu mentor y enseñarte el negocio.',
+      minAge: 20,
+      maxAge: 40,
+      statRequirements: {'charisma': 30, 'intelligence': 30},
+      choices: [
+        EventChoice(
+          text: 'Aceptar la mentoría',
+          statEffects: {'intelligence': 5, 'charisma': 3, 'discipline': 5, 'reputation': 5},
+          careerExperience: 25,
+        ),
+        EventChoice(
+          text: 'Rechazar, prefiero aprender solo',
+          statEffects: {'discipline': 2},
+        ),
+      ],
+    ),
+
+    // --- Wealth & Luxury Events ---
+    GameEvent(
+      id: 'vip_invitation',
+      type: EventType.social,
+      title: 'Invitación VIP',
+      description: 'Has sido invitado a un evento exclusivo de la alta sociedad.',
+      minAge: 25,
+      maxAge: 80,
+      statRequirements: {'reputation': 50, 'money': 100000},
+      moneyRequired: 100000,
+      choices: [
+        EventChoice(
+          text: 'Asistir y hacer contactos',
+          statEffects: {'charisma': 5, 'reputation': 10, 'stress': 5},
+          moneyEffect: -10000,
+          careerExperience: 15,
+        ),
+        EventChoice(
+          text: 'Asistir discretamente',
+          statEffects: {'charisma': 2, 'reputation': 3},
+          moneyEffect: -5000,
+        ),
+        EventChoice(
+          text: 'No me interesan esos círculos',
+          statEffects: {'happiness': 3},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'philanthropy',
+      type: EventType.social,
+      title: 'Oportunidad filantrópica',
+      description: 'Una organización benéfica te pide una donación. Sería buena publicidad.',
+      minAge: 25,
+      maxAge: 90,
+      moneyRequired: 50000,
+      choices: [
+        EventChoice(
+          text: 'Donar una gran cantidad',
+          statEffects: {'reputation': 15, 'happiness': 10, 'stress': -5},
+          moneyEffect: -100000,
+        ),
+        EventChoice(
+          text: 'Donar modestamente',
+          statEffects: {'reputation': 5, 'happiness': 5},
+          moneyEffect: -10000,
+        ),
+        EventChoice(
+          text: 'No donar',
+          statEffects: {'reputation': -5},
+        ),
+      ],
+    ),
+
+    // --- Family Events ---
+    GameEvent(
+      id: 'family_reunion',
+      type: EventType.family,
+      title: 'Reunión familiar',
+      description: 'Tus familiares organizan una reunión. Hace tiempo que no ves a muchos de ellos.',
+      minAge: 10,
+      maxAge: 80,
+      choices: [
+        EventChoice(
+          text: 'Asistir y disfrutar',
+          statEffects: {'happiness': 10, 'charisma': 2, 'stress': -5},
+        ),
+        EventChoice(
+          text: 'Ir por compromiso',
+          statEffects: {'happiness': 3, 'stress': 3},
+        ),
+        EventChoice(
+          text: 'No ir, estoy muy ocupado',
+          statEffects: {'stress': -5, 'happiness': -5, 'reputation': -2},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'child_milestone',
+      type: EventType.family,
+      title: 'Logro de tu hijo',
+      description: 'Tu hijo ha logrado algo importante en la escuela o el deporte.',
+      minAge: 25,
+      maxAge: 60,
+      choices: [
+        EventChoice(
+          text: 'Celebrar y felicitarlo',
+          statEffects: {'happiness': 15, 'stress': -10, 'charisma': 2},
+          reputationEffect: 3,
+        ),
+        EventChoice(
+          text: 'Reconocerlo pero seguir trabajando',
+          statEffects: {'happiness': 5},
+        ),
+      ],
+    ),
+
+    // --- Health & Aging Events ---
+    GameEvent(
+      id: 'fitness_challenge',
+      type: EventType.medical,
+      title: 'Reto de fitness',
+      description: 'Un amigo te reta a completar un maratón o competencia física.',
+      minAge: 16,
+      maxAge: 50,
+      statRequirements: {'athleticism': 30},
+      choices: [
+        EventChoice(
+          text: 'Aceptar y entrenar duro',
+          statEffects: {'athleticism': 8, 'health': 5, 'discipline': 5, 'happiness': 10},
+          reputationEffect: 5,
+        ),
+        EventChoice(
+          text: 'Aceptar pero sin prepararme',
+          statEffects: {'athleticism': 2, 'health': 2, 'discipline': -2},
+        ),
+        EventChoice(
+          text: 'Rechazar, no es lo mío',
+          statEffects: {},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'aging_parents',
+      type: EventType.family,
+      title: 'Cuidado de padres',
+      description: 'Tus padres están envejeciendo y necesitan ayuda o cuidados especiales.',
+      minAge: 35,
+      maxAge: 70,
+      choices: [
+        EventChoice(
+          text: 'Ayudarlos económicamente',
+          statEffects: {'happiness': 10, 'stress': 10, 'reputation': 5},
+          moneyEffect: -20000,
+        ),
+        EventChoice(
+          text: 'Contratar cuidados profesionales',
+          statEffects: {'stress': 5, 'happiness': 5},
+          moneyEffect: -30000,
+        ),
+        EventChoice(
+          text: 'No tengo tiempo para eso',
+          statEffects: {'happiness': -10, 'reputation': -5, 'stress': -5},
+        ),
+      ],
+    ),
+
+    // --- Investment & Finance Events ---
+    GameEvent(
+      id: 'crypto_boom',
+      type: EventType.financial,
+      title: 'Boom de criptomonedas',
+      description: 'Las criptomonedas están en auge. Todos hablan de ganancias increíbles.',
+      minAge: 18,
+      maxAge: 80,
+      moneyRequired: 1000,
+      choices: [
+        EventChoice(
+          text: 'Invertir fuertemente',
+          statEffects: {'stress': 30, 'intelligence': 3},
+          moneyEffect: -50000,
+          careerExperience: 20,
+        ),
+        EventChoice(
+          text: 'Invertir una cantidad moderada',
+          statEffects: {'stress': 15},
+          moneyEffect: -5000,
+          careerExperience: 10,
+        ),
+        EventChoice(
+          text: 'No invertir, es muy riesgoso',
+          statEffects: {'intelligence': 2},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'bank_loan_offer',
+      type: EventType.financial,
+      title: 'Oferta de préstamo',
+      description: 'El banco te ofrece un préstamo con buenas condiciones para invertir.',
+      minAge: 22,
+      maxAge: 70,
+      statRequirements: {'reputation': 30},
+      choices: [
+        EventChoice(
+          text: 'Aceptar el préstamo e invertir',
+          statEffects: {'stress': 20, 'intelligence': 3},
+          moneyEffect: 100000,
+          careerExperience: 20,
+        ),
+        EventChoice(
+          text: 'Aceptar pero guardar el dinero',
+          statEffects: {'stress': 10},
+          moneyEffect: 100000,
+        ),
+        EventChoice(
+          text: 'Rechazar, no quiero deudas',
+          statEffects: {'stress': -10, 'discipline': 3},
+        ),
+      ],
+    ),
+    GameEvent(
+      id: 'economic_crisis',
+      type: EventType.financial,
+      title: 'Crisis económica',
+      description: 'La economía está en crisis. Muchas empresas están cerrando y el mercado cae.',
+      minAge: 18,
+      maxAge: 90,
+      statRequirements: {'intelligence': 30},
+      choices: [
+        EventChoice(
+          text: 'Comprar acciones baratas',
+          statEffects: {'stress': 25, 'intelligence': 5},
+          moneyEffect: -20000,
+          careerExperience: 25,
+        ),
+        EventChoice(
+          text: 'Guardar efectivo y esperar',
+          statEffects: {'stress': 10, 'intelligence': 3},
+        ),
+        EventChoice(
+          text: 'Vender todo antes de que caiga más',
+          statEffects: {'stress': -10, 'happiness': -5},
+          moneyEffect: 5000,
+        ),
+      ],
+    ),
+
+    // --- Social Media & Fame Events ---
+    GameEvent(
+      id: 'viral_video',
+      type: EventType.social,
+      title: 'Video viral',
+      description: 'Un video tuyo se ha vuelto viral en redes sociales. Miles de personas lo han visto.',
+      minAge: 14,
+      maxAge: 60,
+      statRequirements: {'charisma': 30},
+      choices: [
+        EventChoice(
+          text: 'Aprovechar la fama',
+          statEffects: {'reputation': 15, 'charisma': 5, 'stress': 15},
+          moneyEffect: 5000,
+          careerGranted: 'influencer',
+          careerExperience: 30,
+        ),
+        EventChoice(
+          text: 'Disfrutar el momento sin más',
+          statEffects: {'reputation': 5, 'happiness': 5},
+        ),
+        EventChoice(
+          text: 'Borrarlo, no quiero atención',
+          statEffects: {'reputation': -5, 'happiness': -3},
+        ),
+      ],
+    ),
   ];
 }
